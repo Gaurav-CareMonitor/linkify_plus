@@ -17,9 +17,7 @@ class LinkifyExample extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'linkify_plus example',
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('linkify_plus example'),
-        ),
+        appBar: AppBar(title: const Text('linkify_plus example')),
         body: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[

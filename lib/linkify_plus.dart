@@ -100,11 +100,7 @@ class Linkify extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final elements = linkify(
-      text,
-      options: options,
-      linkifiers: linkifiers,
-    );
+    final elements = linkify(text, options: options, linkifiers: linkifiers);
 
     return Text.rich(
       buildTextSpan(
@@ -265,11 +261,7 @@ class SelectableLinkify extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final elements = linkify(
-      text,
-      options: options,
-      linkifiers: linkifiers,
-    );
+    final elements = linkify(text, options: options, linkifiers: linkifiers);
 
     return SelectableText.rich(
       buildTextSpan(
@@ -315,12 +307,7 @@ class LinkableSpan extends WidgetSpan {
     required MouseCursor mouseCursor,
     required InlineSpan inlineSpan,
   }) : super(
-          child: MouseRegion(
-            cursor: mouseCursor,
-            child: Text.rich(
-              inlineSpan,
-            ),
-          ),
+          child: MouseRegion(cursor: mouseCursor, child: Text.rich(inlineSpan)),
         );
 }
 
@@ -362,10 +349,7 @@ List<InlineSpan>? buildTextSpanChildren(
             mouseCursor: useMouseRegion ? SystemMouseCursors.click : null,
           )
         else
-          TextSpan(
-            text: element.text,
-            style: style,
-          ),
+          TextSpan(text: element.text, style: style),
     ];
 
 class LinkifySpan extends TextSpan {
