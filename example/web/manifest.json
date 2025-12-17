@@ -1,6 +1,6 @@
 {
-    "name": "example",
-    "short_name": "example",
+    "name": "linkify_plus_example",
+    "short_name": "linkify_plus_example",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
