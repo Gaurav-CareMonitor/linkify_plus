@@ -88,14 +88,35 @@ class LinkifyOptions {
   /// If set, will use this text instead of the URL.
   final String? urlText;
 
-  const LinkifyOptions({
-    this.humanize = true,
-    this.removeWww = false,
-    this.looseUrl = false,
-    this.defaultToHttps = false,
-    this.excludeLastPeriod = true,
-    this.urlText,
-  });
+  final bool linkAsList;
+  const LinkifyOptions(
+      {this.humanize = true,
+      this.removeWww = false,
+      this.looseUrl = false,
+      this.defaultToHttps = false,
+      this.excludeLastPeriod = true,
+      this.urlText,
+      this.linkAsList = false});
+
+  LinkifyOptions copyWith({
+    bool? humanize,
+    bool? removeWww,
+    bool? looseUrl,
+    bool? defaultToHttps,
+    bool? excludeLastPeriod,
+    String? urlText,
+    bool? linkAsList,
+  }) {
+    return LinkifyOptions(
+      humanize: humanize ?? this.humanize,
+      removeWww: removeWww ?? this.removeWww,
+      looseUrl: looseUrl ?? this.looseUrl,
+      defaultToHttps: defaultToHttps ?? this.defaultToHttps,
+      excludeLastPeriod: excludeLastPeriod ?? this.excludeLastPeriod,
+      urlText: urlText ?? this.urlText,
+      linkAsList: linkAsList ?? this.linkAsList,
+    );
+  }
 }
 
 const _hyperLinkifier = HyperLinkifier();

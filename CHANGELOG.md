@@ -1,3 +1,5 @@
+## [6.0.4] 
+- Added bullet points support in `HashUrlLinkifier`
 ## [6.0.3] 
 - Fixed bug in `HashUrlLinkifier`
 ## [6.0.1] 
