@@ -35,7 +35,8 @@ class LinkifyExample extends StatelessWidget {
                   onOpen: _onOpen,
                   textScaleFactor: 2,
                   options: const LinkifyOptions(linkAsList: true),
-                  text: "Made by #https://cretezy.com#falls#",
+                  text:
+                      "Made by #https://cretezy.com#falls# , #https://crdetezy.com#faldls# and",
                 ),
               ),
               Center(

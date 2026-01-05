@@ -95,43 +95,51 @@ class HashUrlLinkifier extends Linkifier {
                 ? remaining.substring(0, nextNewline)
                 : remaining;
 
-            // Try to find a link pattern in this line
-            final coreMatch = _listItemCoreRegex.firstMatch(line);
+            // Find ALL link patterns in this line
+            final lineMatches = _listItemCoreRegex.allMatches(line).toList();
 
-            if (coreMatch != null) {
-              final beforeLink = line.substring(0, coreMatch.start).trim();
-              final url = coreMatch.group(1)!;
-              final rawTitle = coreMatch.group(2)!;
-              final title = rawTitle.trim();
-              final afterLink = line.substring(coreMatch.end).trim();
+            if (lineMatches.isNotEmpty) {
+              var lineIndex = 0;
 
-              // Add text before the link (if any)
-              if (beforeLink.isNotEmpty) {
-                list.add(TextElement(beforeLink));
+              for (final coreMatch in lineMatches) {
+                final beforeLink =
+                    line.substring(lineIndex, coreMatch.start).trim();
+                final url = coreMatch.group(1)!;
+                final rawTitle = coreMatch.group(2)!;
+                final title = rawTitle.trim();
+
+                // Add text before the link (if any) - skip commas
+                if (beforeLink.isNotEmpty && beforeLink != ',') {
+                  list.add(TextElement(beforeLink));
+                  list.add(TextElement('\n'));
+                }
+
+                // Add the bullet and link
+                list.add(TextElement('• '));
+                list.add(HashUrlElement(
+                  url,
+                  title.isNotEmpty ? title : url,
+                ));
                 list.add(TextElement('\n'));
+
+                lineIndex = coreMatch.end;
               }
 
-              // Add the bullet and link
-              list.add(TextElement('• '));
-              list.add(HashUrlElement(
-                url,
-                title.isNotEmpty ? title : url,
-              ));
-
-              // Handle text after the link
-              if (afterLink.isNotEmpty) {
-                // Check if it's just punctuation
-                if (afterLink == ',' || afterLink == '.' || afterLink == ';') {
-                  list.add(TextElement(afterLink));
+              // Handle text after all links on this line
+              final afterLinks = line.substring(lineIndex).trim();
+              if (afterLinks.isNotEmpty) {
+                // Skip comma for bullet points, but keep other punctuation
+                if (afterLinks == ',') {
+                  // Don't add comma in bullet list
+                } else if (afterLinks == '.' || afterLinks == ';') {
+                  list.add(TextElement(afterLinks));
+                  list.add(TextElement('\n'));
                 } else {
                   // It's substantial text, put it on next line
+                  list.add(TextElement(afterLinks));
                   list.add(TextElement('\n'));
-                  list.add(TextElement(afterLink));
                 }
               }
-
-              // Add newline after bullet point
-              list.add(TextElement('\n'));
 
               // Advance remaining
               remaining =
