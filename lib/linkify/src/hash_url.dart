@@ -6,7 +6,7 @@ class HashUrlLinkifier extends Linkifier {
   // Original inline pattern: #https://...#Some Title#
   static final _inlineResourceRegex = RegExp(r'#(https?://[^\s#]+)#([^#]+)#');
 
-  // List item pattern - matches the link anywhere (no anchor at start/end)
+  // List item pattern - matches the link anywhere
   static final _listItemCoreRegex = RegExp(
     r'#(https?://[^#\s]+)#\s*([^#]+?)\s*#',
     caseSensitive: false,
@@ -23,6 +23,71 @@ class HashUrlLinkifier extends Linkifier {
 
         // === Bullet List Mode ===
         if (options.linkAsList) {
+          // First, check if this text contains multiple hash links in a list format
+          final allMatches = _listItemCoreRegex.allMatches(remaining).toList();
+
+          if (allMatches.length < 2) {
+            // Less than 2 links, use inline parsing
+            final matches = _inlineResourceRegex.allMatches(remaining);
+            if (matches.isEmpty) {
+              list.add(TextElement(remaining));
+            } else {
+              var currentIndex = 0;
+              for (final match in matches) {
+                final prefix = remaining.substring(currentIndex, match.start);
+                if (prefix.isNotEmpty) {
+                  list.add(TextElement(prefix));
+                }
+                list.add(HashUrlElement(match.group(1)!, match.group(2)!));
+                currentIndex = match.end;
+              }
+              final suffix = remaining.substring(currentIndex);
+              if (suffix.isNotEmpty) {
+                list.add(TextElement(suffix));
+              }
+            }
+            continue;
+          }
+
+          // Check if links are consecutive (separated only by whitespace, newlines, or commas)
+          bool isConsecutiveList = true;
+          for (int i = 0; i < allMatches.length - 1; i++) {
+            final currentEnd = allMatches[i].end;
+            final nextStart = allMatches[i + 1].start;
+            final textBetween =
+                remaining.substring(currentEnd, nextStart).trim();
+
+            // Links should be separated by nothing, comma, or just whitespace/newlines
+            if (textBetween.isNotEmpty && textBetween != ',') {
+              isConsecutiveList = false;
+              break;
+            }
+          }
+
+          // If not a consecutive list, use inline parsing
+          if (!isConsecutiveList) {
+            final matches = _inlineResourceRegex.allMatches(remaining);
+            if (matches.isEmpty) {
+              list.add(TextElement(remaining));
+            } else {
+              var currentIndex = 0;
+              for (final match in matches) {
+                final prefix = remaining.substring(currentIndex, match.start);
+                if (prefix.isNotEmpty) {
+                  list.add(TextElement(prefix));
+                }
+                list.add(HashUrlElement(match.group(1)!, match.group(2)!));
+                currentIndex = match.end;
+              }
+              final suffix = remaining.substring(currentIndex);
+              if (suffix.isNotEmpty) {
+                list.add(TextElement(suffix));
+              }
+            }
+            continue;
+          }
+
+          // We have multiple consecutive links, process as a list
           while (remaining.isNotEmpty) {
             // Find the next newline
             final nextNewline = remaining.indexOf('\n');
@@ -34,18 +99,16 @@ class HashUrlLinkifier extends Linkifier {
             final coreMatch = _listItemCoreRegex.firstMatch(line);
 
             if (coreMatch != null) {
-              final beforeLink = line.substring(0, coreMatch.start);
+              final beforeLink = line.substring(0, coreMatch.start).trim();
               final url = coreMatch.group(1)!;
               final rawTitle = coreMatch.group(2)!;
               final title = rawTitle.trim();
-              final afterLink = line.substring(coreMatch.end);
+              final afterLink = line.substring(coreMatch.end).trim();
 
               // Add text before the link (if any)
-              if (beforeLink.trim().isNotEmpty) {
+              if (beforeLink.isNotEmpty) {
                 list.add(TextElement(beforeLink));
-                if (afterLink.trim().isNotEmpty || nextNewline >= 0) {
-                  list.add(TextElement('\n'));
-                }
+                list.add(TextElement('\n'));
               }
 
               // Add the bullet and link
@@ -56,28 +119,19 @@ class HashUrlLinkifier extends Linkifier {
               ));
 
               // Handle text after the link
-              final trimmedAfter = afterLink.trim();
-              if (trimmedAfter.isNotEmpty) {
-                // Check if it's just punctuation (comma, period, etc.)
-                if (trimmedAfter == ',' ||
-                    trimmedAfter == '.' ||
-                    trimmedAfter == ';') {
-                  list.add(TextElement(trimmedAfter));
+              if (afterLink.isNotEmpty) {
+                // Check if it's just punctuation
+                if (afterLink == ',' || afterLink == '.' || afterLink == ';') {
+                  list.add(TextElement(afterLink));
                 } else {
-                  // It's actual text content, put it on a new line
+                  // It's substantial text, put it on next line
                   list.add(TextElement('\n'));
                   list.add(TextElement(afterLink));
-                  list.add(TextElement('\n'));
                 }
               }
 
-              // Add newline after bullet point (if no text after was added)
-              if (trimmedAfter.isEmpty ||
-                  trimmedAfter == ',' ||
-                  trimmedAfter == '.' ||
-                  trimmedAfter == ';') {
-                list.add(TextElement('\n'));
-              }
+              // Add newline after bullet point
+              list.add(TextElement('\n'));
 
               // Advance remaining
               remaining =
