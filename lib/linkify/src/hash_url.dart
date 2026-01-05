@@ -6,14 +6,11 @@ class HashUrlLinkifier extends Linkifier {
   // Original inline pattern: #https://...#Some Title#
   static final _inlineResourceRegex = RegExp(r'#(https?://[^\s#]+)#([^#]+)#');
 
-  // List item core pattern (matches the link part, including optional trailing comma and whitespace)
+  // List item pattern - matches the link anywhere (no anchor at start/end)
   static final _listItemCoreRegex = RegExp(
-    r'#(https?://[^#\s]+)#\s*([^#]+?)\s*#(?:,\s*)?\s*$',
+    r'#(https?://[^#\s]+)#\s*([^#]+?)\s*#',
     caseSensitive: false,
   );
-
-  // Regex to match line starts (for checking if a list item is at the beginning of remaining text or after a newline)
-  static final _lineStartRegex = RegExp(r'(^|\r?\n)[ \t]*');
 
   @override
   List<LinkifyElement> parse(
@@ -26,64 +23,77 @@ class HashUrlLinkifier extends Linkifier {
 
         // === Bullet List Mode ===
         if (options.linkAsList) {
-          bool processedAny = false;
-
           while (remaining.isNotEmpty) {
-            final lineStartMatch = _lineStartRegex.firstMatch(remaining);
+            // Find the next newline
+            final nextNewline = remaining.indexOf('\n');
+            final line = nextNewline >= 0
+                ? remaining.substring(0, nextNewline)
+                : remaining;
 
-            if (lineStartMatch == null) {
-              // Fallback to inline parsing for the rest
-              list.addAll(parse([TextElement(remaining)],
-                  options.copyWith(linkAsList: false)));
-              break;
-            }
+            // Try to find a link pattern in this line
+            final coreMatch = _listItemCoreRegex.firstMatch(line);
 
-            final lineStartEnd = lineStartMatch.end;
-            final potentialLine = remaining.substring(lineStartEnd);
-
-            final lineEndIndex = potentialLine.indexOf('\n');
-            final line = lineEndIndex >= 0
-                ? potentialLine.substring(0, lineEndIndex)
-                : potentialLine;
-
-            final coreMatch = _listItemCoreRegex.matchAsPrefix(line);
-
-            final thisLineEnd = lineStartEnd +
-                (lineEndIndex >= 0 ? lineEndIndex + 1 : potentialLine.length);
-
-            if (coreMatch != null && coreMatch.end == line.length) {
-              processedAny = true;
+            if (coreMatch != null) {
+              final beforeLink = line.substring(0, coreMatch.start);
               final url = coreMatch.group(1)!;
               final rawTitle = coreMatch.group(2)!;
               final title = rawTitle.trim();
+              final afterLink = line.substring(coreMatch.end);
 
-              // Skip the lineStart whitespace/newline, add bullet and link
+              // Add text before the link (if any)
+              if (beforeLink.trim().isNotEmpty) {
+                list.add(TextElement(beforeLink));
+                if (afterLink.trim().isNotEmpty || nextNewline >= 0) {
+                  list.add(TextElement('\n'));
+                }
+              }
+
+              // Add the bullet and link
               list.add(TextElement('• '));
               list.add(HashUrlElement(
                 url,
                 title.isNotEmpty ? title : url,
               ));
-              list.add(TextElement('\n'));
 
-              // Advance remaining past this item (full line including \n)
-              remaining = remaining.substring(thisLineEnd);
-              continue;
-            } else {
-              final fullLine = remaining.substring(0, thisLineEnd);
-              list.addAll(parse([TextElement(fullLine)],
-                  options.copyWith(linkAsList: false)));
+              // Handle text after the link
+              final trimmedAfter = afterLink.trim();
+              if (trimmedAfter.isNotEmpty) {
+                // Check if it's just punctuation (comma, period, etc.)
+                if (trimmedAfter == ',' ||
+                    trimmedAfter == '.' ||
+                    trimmedAfter == ';') {
+                  list.add(TextElement(trimmedAfter));
+                } else {
+                  // It's actual text content, put it on a new line
+                  list.add(TextElement('\n'));
+                  list.add(TextElement(afterLink));
+                  list.add(TextElement('\n'));
+                }
+              }
+
+              // Add newline after bullet point (if no text after was added)
+              if (trimmedAfter.isEmpty ||
+                  trimmedAfter == ',' ||
+                  trimmedAfter == '.' ||
+                  trimmedAfter == ';') {
+                list.add(TextElement('\n'));
+              }
+
               // Advance remaining
-              remaining = remaining.substring(thisLineEnd);
+              remaining =
+                  nextNewline >= 0 ? remaining.substring(nextNewline + 1) : '';
+            } else {
+              // No link found in this line, add it as-is
+              list.add(TextElement(line));
+              if (nextNewline >= 0) {
+                list.add(TextElement('\n'));
+                remaining = remaining.substring(nextNewline + 1);
+              } else {
+                remaining = '';
+              }
             }
           }
-
-          if (processedAny) {
-            // Process any leftover text recursively (with list mode, but it will fallback if needed)
-            if (remaining.isNotEmpty) {
-              list.addAll(parse([TextElement(remaining)], options));
-            }
-            continue; // Skip inline parsing for this element
-          } else {}
+          continue;
         }
 
         // === Fallback: Original Inline #url#text# Parsing ===
